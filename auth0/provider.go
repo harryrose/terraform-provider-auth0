@@ -39,7 +39,7 @@ func Provider() *schema.Provider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"auth0_client":          newClient(),
+			"auth0_client":          newClient(false),
 			"auth0_client_grant":    newClientGrant(),
 			"auth0_connection":      newConnection(),
 			"auth0_custom_domain":   newCustomDomain(),
@@ -50,6 +50,10 @@ func Provider() *schema.Provider {
 			"auth0_email_template":  newEmailTemplate(),
 			"auth0_user":            newUser(),
 		},
+		DataSourcesMap: map[string]*schema.Resource{
+			"auth0_client": newClient(true),
+		},
+
 		ConfigureFunc: configure,
 	}
 }

@@ -3,207 +3,247 @@ package auth0
 import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
-	auth0 "github.com/yieldr/go-auth0"
+	"github.com/yieldr/go-auth0"
 	"github.com/yieldr/go-auth0/management"
 )
 
-func newClient() *schema.Resource {
-	return &schema.Resource{
-
-		Create: createClient,
-		Read:   readClient,
-		Update: updateClient,
-		Delete: deleteClient,
-		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+func generateClientSchema(isDataResource bool) map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"name": {
+			Type:     schema.TypeString,
+			Required: !isDataResource,
+			Computed: isDataResource,
 		},
-
-		Schema: map[string]*schema.Schema{
-			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-			},
-			"description": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"client_id": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"client_secret": {
-				Type:      schema.TypeString,
-				Computed:  true,
-				Sensitive: true,
-			},
-			"app_type": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"logo_uri": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"is_first_party": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Computed: true,
-			},
-			"oidc_conformant": {
-				Type:     schema.TypeBool,
-				Optional: true,
-			},
-			"callbacks": {
-				Type:     schema.TypeList,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Optional: true,
-			},
-			"allowed_logout_urls": {
-				Type:     schema.TypeList,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Optional: true,
-			},
-			"grant_types": {
-				Type:     schema.TypeList,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Computed: true,
-				Optional: true,
-			},
-			"allowed_origins": {
-				Type:     schema.TypeList,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Optional: true,
-			},
-			"web_origins": {
-				Type:     schema.TypeList,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Optional: true,
-			},
-			"jwt_configuration": {
-				Type:     schema.TypeList,
-				Optional: true,
-				MaxItems: 1,
-				MinItems: 1,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"lifetime_in_seconds": {
-							Type:     schema.TypeInt,
-							Optional: true,
-						},
-						"secret_encoded": {
-							Type:     schema.TypeBool,
-							Optional: true,
-							Computed: true,
-						},
-						"scopes": {
-							Type:     schema.TypeMap,
-							Optional: true,
-							Elem:     &schema.Schema{Type: schema.TypeString},
-						},
-						"alg": {
-							Type:     schema.TypeString,
-							Optional: true,
-						},
+		"description": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"client_id": {
+			Type:     schema.TypeString,
+			Computed: !isDataResource,
+			Required: isDataResource,
+		},
+		"client_secret": {
+			Type:      schema.TypeString,
+			Computed:  true,
+			Sensitive: true,
+		},
+		"app_type": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"logo_uri": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"is_first_party": {
+			Type:     schema.TypeBool,
+			Optional: true,
+			Computed: true,
+		},
+		"oidc_conformant": {
+			Type:     schema.TypeBool,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"callbacks": {
+			Type:     schema.TypeList,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"allowed_logout_urls": {
+			Type:     schema.TypeList,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"grant_types": {
+			Type:     schema.TypeList,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+			Computed: true,
+			Optional: true,
+		},
+		"allowed_origins": {
+			Type:     schema.TypeList,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"signing_keys": {
+			Type: schema.TypeList,
+			Optional: true,
+			Computed: true,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"cert": {
+						Type: schema.TypeString,
+						Computed: true,
+					},
+					"pkcs7": {
+						Type: schema.TypeString,
+						Computed: true,
+					},
+					"subject": {
+						Type: schema.TypeString,
+						Computed: true,
 					},
 				},
 			},
-			"encryption_key": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
+		},
+		"web_origins": {
+			Type:     schema.TypeList,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"jwt_configuration": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Computed: isDataResource,
+			MaxItems: 1,
+			MinItems: 1,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"lifetime_in_seconds": {
+						Type:     schema.TypeInt,
+						Optional: true,
+						Computed: isDataResource,
+					},
+					"secret_encoded": {
+						Type:     schema.TypeBool,
+						Optional: true,
+						Computed: true,
+					},
+					"scopes": {
+						Type:     schema.TypeMap,
+						Optional: true,
+						Elem:     &schema.Schema{Type: schema.TypeString},
+						Computed: isDataResource,
+					},
+					"alg": {
+						Type:     schema.TypeString,
+						Optional: true,
+						Computed: isDataResource,
+					},
+				},
 			},
-			"sso": {
-				Type:     schema.TypeBool,
-				Optional: true,
-			},
-			"sso_disabled": {
-				Type:     schema.TypeBool,
-				Optional: true,
-			},
-			"cross_origin_auth": {
-				Type:     schema.TypeBool,
-				Optional: true,
-			},
-			"cross_origin_loc": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"custom_login_page_on": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Computed: true,
-			},
-			"custom_login_page": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"custom_login_page_preview": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"form_template": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"addons": {
-				Type:     schema.TypeList,
-				Optional: true,
-				MaxItems: 1,
-				Elem:     &schema.Schema{Type: schema.TypeMap},
-			},
-			"token_endpoint_auth_method": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"none",
-					"client_secret_post",
-					"client_secret_basic",
-				}, false),
-			},
-			"client_metadata": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     schema.TypeString,
-			},
-			"mobile": {
-				Type:     schema.TypeList,
-				Optional: true,
-				MaxItems: 1,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"android": {
-							Type:     schema.TypeList,
-							Optional: true,
-							MaxItems: 1,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"app_package_name": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
-									"sha256_cert_fingerprints": {
-										Type:     schema.TypeList,
-										Optional: true,
-										Elem:     &schema.Schema{Type: schema.TypeString},
-									},
+		},
+		"encryption_key": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+			Computed: isDataResource,
+		},
+		"sso": {
+			Type:     schema.TypeBool,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"sso_disabled": {
+			Type:     schema.TypeBool,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"cross_origin_auth": {
+			Type:     schema.TypeBool,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"cross_origin_loc": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"custom_login_page_on": {
+			Type:     schema.TypeBool,
+			Optional: true,
+			Computed: true,
+		},
+		"custom_login_page": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"custom_login_page_preview": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"form_template": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Computed: isDataResource,
+		},
+		"addons": {
+			Type:     schema.TypeList,
+			Optional: true,
+			MaxItems: 1,
+			Elem:     &schema.Schema{Type: schema.TypeMap},
+			Computed: isDataResource,
+		},
+		"token_endpoint_auth_method": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Computed: true,
+			ValidateFunc: validation.StringInSlice([]string{
+				"none",
+				"client_secret_post",
+				"client_secret_basic",
+			}, false),
+		},
+		"client_metadata": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Computed: isDataResource,
+			Elem:     schema.TypeString,
+		},
+		"mobile": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Computed: isDataResource,
+			MaxItems: 1,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"android": {
+						Type:     schema.TypeList,
+						Optional: true,
+						MaxItems: 1,
+						Elem: &schema.Resource{
+							Schema: map[string]*schema.Schema{
+								"app_package_name": {
+									Type:     schema.TypeString,
+									Optional: true,
+									Computed: isDataResource,
+								},
+								"sha256_cert_fingerprints": {
+									Type:     schema.TypeList,
+									Optional: true,
+									Computed: isDataResource,
+									Elem:     &schema.Schema{Type: schema.TypeString},
 								},
 							},
 						},
-						"ios": {
-							Type:     schema.TypeList,
-							Optional: true,
-							MaxItems: 1,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"team_id": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
-									"app_bundle_identifier": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
+					},
+					"ios": {
+						Type:     schema.TypeList,
+						Optional: true,
+						Computed: isDataResource,
+						MaxItems: 1,
+						Elem: &schema.Resource{
+							Schema: map[string]*schema.Schema{
+								"team_id": {
+									Type:     schema.TypeString,
+									Optional: true,
+									Computed: isDataResource,
+								},
+								"app_bundle_identifier": {
+									Type:     schema.TypeString,
+									Optional: true,
+									Computed: isDataResource,
 								},
 							},
 						},
@@ -212,6 +252,37 @@ func newClient() *schema.Resource {
 			},
 		},
 	}
+}
+
+func newClient(isDataResource bool) *schema.Resource {
+	var idExtractor func(d *schema.ResourceData) string
+
+	if isDataResource {
+		idExtractor = func(d *schema.ResourceData) string {
+			return d.Get("client_id").(string)
+		}
+	} else {
+		idExtractor = idFromIDFn
+	}
+
+	out := &schema.Resource{
+		Create: createClient,
+		Read:   readClient(idExtractor),
+		Update: updateClient,
+		Delete: deleteClient,
+		Importer: &schema.ResourceImporter{
+			State: schema.ImportStatePassthrough,
+		},
+		Schema: generateClientSchema(isDataResource),
+	}
+
+	if isDataResource {
+		out.Create = nil
+		out.Update = nil
+		out.Delete = nil
+	}
+
+	return out
 }
 
 func createClient(d *schema.ResourceData, m interface{}) error {
@@ -221,54 +292,74 @@ func createClient(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 	d.SetId(auth0.StringValue(c.ClientID))
-	return readClient(d, m)
+	return readClient(idFromIDFn)(d, m)
 }
 
-func readClient(d *schema.ResourceData, m interface{}) error {
-	api := m.(*management.Management)
-	c, err := api.Client.Read(d.Id())
-	if err != nil {
-		return err
+func idFromIDFn(d *schema.ResourceData) string {
+	return d.Id()
+}
+
+func readClient(idExtractor func(*schema.ResourceData) string ) func (*schema.ResourceData, interface{}) error {
+	return func(d *schema.ResourceData, m interface{}) error {
+		api := m.(*management.Management)
+		c, err := api.Client.Read(idExtractor(d))
+		if err != nil {
+			return err
+		}
+
+		d.SetId(*c.ClientID)
+
+		d.Set("client_id", c.ClientID)
+		d.Set("client_secret", c.ClientSecret)
+		d.Set("name", c.Name)
+		d.Set("description", c.Description)
+		d.Set("app_type", c.AppType)
+		d.Set("logo_uri", c.LogoURI)
+		d.Set("is_first_party", c.IsFirstParty)
+		d.Set("oidc_conformant", c.OIDCConformant)
+		d.Set("callbacks", c.Callbacks)
+		d.Set("allowed_logout_urls", c.AllowedLogoutURLs)
+		d.Set("allowed_origins", c.AllowedOrigins)
+		d.Set("grant_types", c.GrantTypes)
+		d.Set("web_origins", c.WebOrigins)
+		d.Set("sso", c.SSO)
+		d.Set("sso_disabled", c.SSODisabled)
+		d.Set("cross_origin_auth", c.CrossOriginAuth)
+		d.Set("cross_origin_loc", c.CrossOriginLocation)
+		d.Set("custom_login_page_on", c.CustomLoginPageOn)
+		d.Set("custom_login_page", c.CustomLoginPage)
+		d.Set("custom_login_page_preview", c.CustomLoginPagePreview)
+		d.Set("form_template", c.FormTemplate)
+		d.Set("token_endpoint_auth_method", c.TokenEndpointAuthMethod)
+
+		signingKeys := make([]map[string]interface{}, len(c.SigningKeys))
+		for i, sk := range c.SigningKeys {
+			signingKeys[i] = map[string]interface{}{
+				"cert":    sk["cert"],
+				"pkcs7":   sk["pkcs7"],
+				"subject": sk["subject"],
+			}
+		}
+
+		d.Set("signing_keys", signingKeys)
+
+
+		if jwtConfiguration := c.JWTConfiguration; jwtConfiguration != nil {
+			d.Set("jwt_configuration", map[string]interface{}{
+				"lifetime_in_seconds": jwtConfiguration.Algorithm,
+				"secret_encoded":      jwtConfiguration.LifetimeInSeconds,
+				"scopes":              jwtConfiguration.Scopes,
+				"alg":                 jwtConfiguration.SecretEncoded,
+			})
+		}
+
+		d.Set("encryption_key", c.EncryptionKey)
+		d.Set("addons", c.Addons)
+		d.Set("client_metadata", c.ClientMetadata)
+		d.Set("mobile", c.Mobile)
+
+		return nil
 	}
-
-	d.Set("client_id", c.ClientID)
-	d.Set("client_secret", c.ClientSecret)
-	d.Set("name", c.Name)
-	d.Set("description", c.Description)
-	d.Set("app_type", c.AppType)
-	d.Set("logo_uri", c.LogoURI)
-	d.Set("is_first_party", c.IsFirstParty)
-	d.Set("oidc_conformant", c.OIDCConformant)
-	d.Set("callbacks", c.Callbacks)
-	d.Set("allowed_logout_urls", c.AllowedLogoutURLs)
-	d.Set("allowed_origins", c.AllowedOrigins)
-	d.Set("grant_types", c.GrantTypes)
-	d.Set("web_origins", c.WebOrigins)
-	d.Set("sso", c.SSO)
-	d.Set("sso_disabled", c.SSODisabled)
-	d.Set("cross_origin_auth", c.CrossOriginAuth)
-	d.Set("cross_origin_loc", c.CrossOriginLocation)
-	d.Set("custom_login_page_on", c.CustomLoginPageOn)
-	d.Set("custom_login_page", c.CustomLoginPage)
-	d.Set("custom_login_page_preview", c.CustomLoginPagePreview)
-	d.Set("form_template", c.FormTemplate)
-	d.Set("token_endpoint_auth_method", c.TokenEndpointAuthMethod)
-
-	if jwtConfiguration := c.JWTConfiguration; jwtConfiguration != nil {
-		d.Set("jwt_configuration", map[string]interface{}{
-			"lifetime_in_seconds": jwtConfiguration.Algorithm,
-			"secret_encoded":      jwtConfiguration.LifetimeInSeconds,
-			"scopes":              jwtConfiguration.Scopes,
-			"alg":                 jwtConfiguration.SecretEncoded,
-		})
-	}
-
-	d.Set("encryption_key", c.EncryptionKey)
-	d.Set("addons", c.Addons)
-	d.Set("client_metadata", c.ClientMetadata)
-	d.Set("mobile", c.Mobile)
-
-	return nil
 }
 
 func updateClient(d *schema.ResourceData, m interface{}) error {
@@ -278,7 +369,7 @@ func updateClient(d *schema.ResourceData, m interface{}) error {
 	if err != nil {
 		return err
 	}
-	return readClient(d, m)
+	return readClient(idFromIDFn)(d, m)
 }
 
 func deleteClient(d *schema.ResourceData, m interface{}) error {

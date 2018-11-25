@@ -1,6 +1,8 @@
 package auth0
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/hashicorp/terraform/helper/schema"
 	auth0 "github.com/yieldr/go-auth0"
 	"github.com/yieldr/go-auth0/management"
@@ -64,6 +66,28 @@ func newUser() *schema.Resource {
 			"app_metadata": {
 				Type:     schema.TypeMap,
 				Optional: true,
+				ConflictsWith: []string{"app_metadata_raw"},
+			},
+			"app_metadata_raw": {
+				Type: schema.TypeString,
+				Optional: true,
+				ConflictsWith: []string{"app_metadata"},
+				ValidateFunc: func(i interface{}, s string) ([]string,[]error) {
+					var errs []error
+					iStr, ok := i.(string)
+					if !ok {
+						errs = append(errs, fmt.Errorf("%q must be a string", s))
+					}
+
+					var decoded map[string]interface{}
+					err := json.Unmarshal([]byte(iStr), &decoded)
+
+					if err != nil {
+						errs = append(errs, fmt.Errorf("invalid json in %q. %v", s, err.Error()))
+					}
+
+					return nil, errs
+				},
 			},
 		},
 	}
@@ -112,6 +136,14 @@ func deleteUser(d *schema.ResourceData, m interface{}) error {
 }
 
 func buildUser(d *schema.ResourceData) *management.User {
+	var appMetadata map[string]interface{}
+	
+	if val, ok := d.GetOk("app_metadata_raw"); ok {
+		json.Unmarshal([]byte(val.(string)), &appMetadata)
+	} else {
+		appMetadata = Map(d, "app_metadata")
+	}
+	 
 	u := &management.User{
 		ID:            String(d, "user_id"),
 		Connection:    String(d, "connection_name"),
@@ -121,7 +153,7 @@ func buildUser(d *schema.ResourceData) *management.User {
 		EmailVerified: Bool(d, "email_verified"),
 		VerifyEmail:   Bool(d, "verify_email"),
 		PhoneVerified: Bool(d, "phone_verified"),
-		AppMetadata:   Map(d, "app_metadata"),
+		AppMetadata:   appMetadata,
 		Email:         String(d, "email"),
 		Password:      String(d, "password"),
 	}
