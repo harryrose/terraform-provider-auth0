@@ -49,6 +49,10 @@ func Provider() *schema.Provider {
 			"auth0_email":           newEmail(),
 			"auth0_email_template":  newEmailTemplate(),
 		},
+		DataSourcesMap: map[string]*schema.Resource{
+			"auth0_client": newClientDataSource(),
+		},
+
 		ConfigureFunc: configure,
 	}
 }
