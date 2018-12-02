@@ -2,9 +2,10 @@
   name = "github.com/hashicorp/terraform"
   version = "0.11.7"
 
-[[constraint]]
+[[override]]
   name = "github.com/yieldr/go-auth0"
-  version = "v1.0.0-beta.8"
+  source = "github.com/harryrose/go-auth0"
+  branch = "master"
 
 [prune]
   go-tests = true
