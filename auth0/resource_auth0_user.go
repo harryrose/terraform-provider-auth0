@@ -1,6 +1,8 @@
 package auth0
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/hashicorp/terraform/helper/schema"
 	auth0 "github.com/yieldr/go-auth0"
 	"github.com/yieldr/go-auth0/management"
@@ -46,8 +48,15 @@ func newUser() *schema.Resource {
 				Optional: true,
 			},
 			"user_metadata": {
-				Type:     schema.TypeMap,
-				Optional: true,
+				Type:          schema.TypeMap,
+				Optional:      true,
+				ConflictsWith: []string{"user_metadata_json"},
+				ValidateFunc:  validateJSONField,
+			},
+			"user_metadata_json": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ConflictsWith: []string{"user_metadata"},
 			},
 			"email_verified": {
 				Type:     schema.TypeBool,
@@ -62,8 +71,15 @@ func newUser() *schema.Resource {
 				Optional: true,
 			},
 			"app_metadata": {
-				Type:     schema.TypeMap,
-				Optional: true,
+				Type:          schema.TypeMap,
+				Optional:      true,
+				ConflictsWith: []string{"app_metadata_json"},
+				ValidateFunc:  validateJSONField,
+			},
+			"app_metadata_json": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ConflictsWith: []string{"app_metadata"},
 			},
 		},
 	}
@@ -79,10 +95,20 @@ func readUser(d *schema.ResourceData, m interface{}) error {
 	d.Set("username", u.Username)
 	d.Set("phone_number", u.PhoneNumber)
 	d.Set("user_metadata", u.UserMetadata)
+
+	if js, err := json.Marshal(u.UserMetadata); err != nil {
+		d.Set("user_metadata_json", string(js))
+	}
+
 	d.Set("email_verified", u.EmailVerified)
 	d.Set("phone_verified", u.PhoneVerified)
 	d.Set("verify_email", u.VerifyEmail)
 	d.Set("app_metadata", u.AppMetadata)
+
+	if js, err := json.Marshal(u.AppMetadata); err != nil {
+		d.Set("app_metadata_json", string(js))
+	}
+
 	d.Set("email", u.Email)
 	return nil
 }
@@ -112,16 +138,20 @@ func deleteUser(d *schema.ResourceData, m interface{}) error {
 }
 
 func buildUser(d *schema.ResourceData) *management.User {
+
+	appMetadata := handleJSONFields(d, "app_metadata_json", "app_metadata")
+	userMetadata := handleJSONFields(d, "user_metadata_json", "user_metadata")
+
 	u := &management.User{
 		ID:            String(d, "user_id"),
 		Connection:    String(d, "connection_name"),
 		Username:      String(d, "username"),
 		PhoneNumber:   String(d, "phone_number"),
-		UserMetadata:  Map(d, "user_metadata"),
+		UserMetadata:  userMetadata,
 		EmailVerified: Bool(d, "email_verified"),
 		VerifyEmail:   Bool(d, "verify_email"),
 		PhoneVerified: Bool(d, "phone_verified"),
-		AppMetadata:   Map(d, "app_metadata"),
+		AppMetadata:   appMetadata,
 		Email:         String(d, "email"),
 		Password:      String(d, "password"),
 	}
@@ -139,4 +169,38 @@ func buildUser(d *schema.ResourceData) *management.User {
 	}
 
 	return u
+}
+
+func handleJSONFields(d *schema.ResourceData, jsonFieldName, mapFieldName string) map[string]interface{} {
+	m := Map(d, mapFieldName)
+	if m != nil {
+		return m
+	}
+
+	js := String(d, jsonFieldName)
+	if js == nil {
+		return nil
+	}
+
+	_ = json.Unmarshal([]byte(*js), &m)
+
+	return m
+}
+
+func validateJSONField(value interface{}, key string) (strings []string, errors []error) {
+	str, ok := value.(string)
+
+	if !ok {
+		errors = append(errors, fmt.Errorf("field '%s' must be a string", key))
+		return
+	}
+
+	var target map[string]interface{}
+
+	err := json.Unmarshal([]byte(str), &target)
+
+	if err != nil {
+		errors = append(errors, fmt.Errorf("field '%s' is not a valid JSON object. %v", key, err))
+	}
+	return
 }
